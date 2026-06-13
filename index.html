@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A neon audiovisual instrument. Press a letter or tap the screen to create sound and light."
+    />
+    <meta name="theme-color" content="#070b18" />
+    <title>Signal Bloom</title>
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <main class="instrument">
+      <canvas id="visuals" aria-hidden="true"></canvas>
+
+      <header class="chrome">
+        <a class="brand" href="./" aria-label="Signal Bloom home">
+          SIGNAL<span>BLOOM</span>
+        </a>
+        <button class="sound-toggle" type="button" aria-pressed="false">
+          Sound on
+        </button>
+      </header>
+
+      <section class="intro" aria-labelledby="intro-title">
+        <p class="eyebrow">Audiovisual instrument / 01</p>
+        <h1 id="intro-title">Press any letter.<br />Break the surface.</h1>
+        <p class="instructions">
+          Use your keyboard, or tap a letter below. Layer sounds to make the
+          field bend, bloom, and disintegrate.
+        </p>
+      </section>
+
+      <div class="status" role="status" aria-live="polite">
+        <span class="status-light"></span>
+        <span class="status-copy">Ready for input</span>
+      </div>
+
+      <section class="key-panel" aria-label="Playable letters">
+        <div class="key-grid"></div>
+      </section>
+
+      <footer>
+        <span>Headphones recommended</span>
+        <span class="meter" aria-hidden="true"><i></i></span>
+      </footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "signal-bloom",
+  "version": "1.0.0",
+  "description": "A sound-reactive neon audiovisual instrument.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jefflovell/signal-bloom.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "howler": "2.2.4",
+    "ogl": "1.0.11"
+  },
+  "devDependencies": {
+    "vite": "^8.0.16"
+  }
+}
