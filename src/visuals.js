@@ -1,4 +1,4 @@
-import { Geometry, Mesh, Program, Renderer } from "ogl";
+import { Geometry, Mesh, Program, Renderer, Texture } from "ogl";
 
 const MAX_PARTICLES = 2800;
 const TAU = Math.PI * 2;
@@ -19,6 +19,9 @@ const backgroundFragment = `
   uniform float uTime;
   uniform float uEnergy;
   uniform float uBass;
+  uniform float uMid;
+  uniform float uTreble;
+  uniform sampler2D uAudioData;
   uniform vec2 uResolution;
   varying vec2 vUv;
 
@@ -26,27 +29,46 @@ const backgroundFragment = `
     return 1.0 - smoothstep(0.0, width, abs(value));
   }
 
+  vec2 audioAt(float x) {
+    return texture2D(uAudioData, vec2(clamp(x, 0.0, 1.0), 0.5)).rg;
+  }
+
   void main() {
     vec2 uv = vUv;
     vec2 centered = uv - 0.5;
     centered.x *= uResolution.x / max(uResolution.y, 1.0);
 
-    float horizon = 0.64 + sin(uv.x * 6.0 + uTime * 0.35) * (0.012 + uBass * 0.035);
-    float bend = centered.x * centered.x * (0.09 + uEnergy * 0.08);
-    float y = uv.y + bend;
+    vec2 audio = audioAt(uv.x);
+    float spectrum = audio.r;
+    float waveform = audio.g * 2.0 - 1.0;
+    float lowWave = sin(uv.x * 8.0 - uTime * 1.8) * uBass * 0.045;
+    float midWave = sin(uv.x * 21.0 + uTime * 2.6) * uMid * 0.018;
+    float highWave = sin(uv.x * 52.0 - uTime * 4.4) * uTreble * 0.008;
+    float analyzer = spectrum * (0.075 + uEnergy * 0.12);
+    float scope = waveform * (0.026 + uEnergy * 0.045);
+    float surface = 0.57 - analyzer - scope + lowWave + midWave + highWave;
 
-    float horizontal = line(fract((y - horizon) * 18.0) - 0.5, 0.035);
-    float vertical = line(fract((uv.x - 0.5) * 22.0) - 0.5, 0.028);
-    float depthMask = smoothstep(horizon - 0.03, 1.02, y);
+    float distanceBelow = max(uv.y - surface, 0.0);
+    float perspective = distanceBelow * distanceBelow * 0.32;
+    float y = uv.y + perspective;
+
+    float horizontal = line(fract((y - surface) * 19.0) - 0.5, 0.035);
+    float verticalWarp = waveform * uEnergy * 0.035;
+    float vertical = line(fract((uv.x + verticalWarp) * 24.0) - 0.5, 0.028);
+    float depthMask = smoothstep(surface - 0.012, surface + 0.5, uv.y);
     float grid = (horizontal + vertical * 0.55) * depthMask;
 
     float pulse = exp(-length(centered * vec2(0.82, 1.2)) * 4.8);
+    float trace = line(uv.y - surface, 0.004 + uTreble * 0.002);
+    float traceGlow = line(uv.y - surface, 0.018 + uEnergy * 0.01);
     vec3 base = vec3(0.027, 0.043, 0.094);
     vec3 blue = vec3(0.192, 0.333, 0.961);
     vec3 cyan = vec3(0.306, 0.906, 0.961);
     vec3 color = base + blue * grid * (0.11 + uEnergy * 0.45);
     color += cyan * pulse * uEnergy * 0.12;
-    color += blue * line(y - horizon, 0.004) * (0.22 + uBass * 0.8);
+    color += cyan * trace * (0.32 + spectrum * 1.35);
+    color += blue * traceGlow * (0.08 + uEnergy * 0.22);
+    color += vec3(0.46, 0.35, 1.0) * grid * spectrum * 0.28;
 
     float vignette = smoothstep(0.95, 0.18, length(centered));
     gl_FragColor = vec4(color * (0.72 + vignette * 0.45), 1.0);
@@ -126,6 +148,23 @@ export class VisualEngine {
     this.cursor = 0;
     this.lastTime = performance.now();
     this.activeBursts = [];
+    this.audioTextureData = new Uint8Array(32 * 4);
+    for (let offset = 0; offset < this.audioTextureData.length; offset += 4) {
+      this.audioTextureData[offset + 1] = 128;
+      this.audioTextureData[offset + 3] = 255;
+    }
+    this.audioTexture = new Texture(this.gl, {
+      image: this.audioTextureData,
+      width: 32,
+      height: 1,
+      format: this.gl.RGBA,
+      internalFormat: this.gl.RGBA,
+      type: this.gl.UNSIGNED_BYTE,
+      minFilter: this.gl.LINEAR,
+      magFilter: this.gl.LINEAR,
+      generateMipmaps: false,
+      flipY: false,
+    });
 
     this.positions = new Float32Array(MAX_PARTICLES * 2);
     this.velocities = new Float32Array(MAX_PARTICLES * 2);
@@ -158,6 +197,9 @@ export class VisualEngine {
         uTime: { value: 0 },
         uEnergy: { value: 0 },
         uBass: { value: 0 },
+        uMid: { value: 0 },
+        uTreble: { value: 0 },
+        uAudioData: { value: this.audioTexture },
         uResolution: { value: [1, 1] },
       },
       depthTest: false,
@@ -213,11 +255,13 @@ export class VisualEngine {
 
     this.activeBursts.push({
       age: 0,
-      duration: Math.min(Math.max(duration * 0.72, 0.48), 2.4),
+      attack: Math.min(0.06 + duration * 0.04, 0.16),
+      release: Math.min(Math.max(duration * 0.72, 0.48), 2.4),
       x: point.x,
       y: point.y,
       color,
       mode: config.mode,
+      seed: config.seed,
     });
 
     for (let index = 0; index < particleCount; index += 1) {
@@ -230,11 +274,26 @@ export class VisualEngine {
     this.lastTime = time;
     const dt = delta * 60;
 
-    this.backgroundProgram.uniforms.uTime.value = time / 1000;
-    this.backgroundProgram.uniforms.uEnergy.value = audio.energy;
-    this.backgroundProgram.uniforms.uBass.value = audio.bass;
-
     this.#updateBursts(delta);
+    const burstLevels = this.#getBurstLevels();
+    this.backgroundProgram.uniforms.uTime.value = time / 1000;
+    this.backgroundProgram.uniforms.uEnergy.value = Math.max(
+      audio.energy,
+      burstLevels.energy,
+    );
+    this.backgroundProgram.uniforms.uBass.value = Math.max(
+      audio.bass,
+      burstLevels.bass,
+    );
+    this.backgroundProgram.uniforms.uMid.value = Math.max(
+      audio.mid,
+      burstLevels.mid,
+    );
+    this.backgroundProgram.uniforms.uTreble.value = Math.max(
+      audio.treble,
+      burstLevels.treble,
+    );
+    this.#updateAudioTexture(audio);
     this.#updateParticles(dt, audio);
     this.renderer.render({ scene: this.background });
     this.renderer.render({ scene: this.particles, clear: false });
@@ -244,10 +303,71 @@ export class VisualEngine {
     for (let index = this.activeBursts.length - 1; index >= 0; index -= 1) {
       const burst = this.activeBursts[index];
       burst.age += delta;
-      if (burst.age >= burst.duration) {
+      if (burst.age >= burst.attack + burst.release) {
         this.activeBursts.splice(index, 1);
       }
     }
+  }
+
+  #updateAudioTexture(audio) {
+    this.audioTextureData.set(audio.visualData);
+
+    for (const burst of this.activeBursts) {
+      const shapedEnvelope = this.#burstEnvelope(burst);
+      const center = 0.08 + burst.seed * 0.84;
+      const width =
+        burst.mode === "flow" ? 0.24 : burst.mode === "shatter" ? 0.09 : 0.15;
+      const oscillations =
+        burst.mode === "ripple" ? 8 : burst.mode === "shatter" ? 13 : 5;
+
+      for (let band = 0; band < 32; band += 1) {
+        const x = band / 31;
+        const distance = x - center;
+        const profile = Math.exp(-(distance * distance) / (2 * width * width));
+        const wave = Math.sin(x * Math.PI * oscillations + burst.age * 15);
+        const offset = band * 4;
+        const spectrum = profile * shapedEnvelope * 210;
+        const waveform = wave * profile * shapedEnvelope * 92;
+
+        this.audioTextureData[offset] = Math.min(
+          this.audioTextureData[offset] + spectrum,
+          255,
+        );
+        this.audioTextureData[offset + 1] = Math.min(
+          Math.max(this.audioTextureData[offset + 1] + waveform, 0),
+          255,
+        );
+      }
+    }
+
+    this.audioTexture.needsUpdate = true;
+  }
+
+  #getBurstLevels() {
+    const levels = { energy: 0, bass: 0, mid: 0, treble: 0 };
+
+    for (const burst of this.activeBursts) {
+      const envelope = this.#burstEnvelope(burst);
+      levels.energy = Math.max(levels.energy, envelope);
+
+      if (burst.seed < 0.34) {
+        levels.bass = Math.max(levels.bass, envelope);
+      } else if (burst.seed < 0.7) {
+        levels.mid = Math.max(levels.mid, envelope);
+      } else {
+        levels.treble = Math.max(levels.treble, envelope);
+      }
+    }
+
+    return levels;
+  }
+
+  #burstEnvelope(burst) {
+    const envelope =
+      burst.age < burst.attack
+        ? burst.age / burst.attack
+        : 1 - (burst.age - burst.attack) / burst.release;
+    return Math.max(envelope, 0) ** 1.35;
   }
 
   #updateParticles(dt, audio) {
