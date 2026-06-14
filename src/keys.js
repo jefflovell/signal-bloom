@@ -37,7 +37,10 @@ const soundFiles = [
   "moon",
 ];
 
-const letters = "qwertyuiopasdfghjklzxcvbnm".split("");
+export const keyRows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"].map((row) =>
+  row.split(""),
+);
+const letters = keyRows.flat();
 const modes = ["burst", "flow", "shatter", "ripple"];
 
 export const keyMap = Object.fromEntries(

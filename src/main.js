@@ -1,6 +1,6 @@
 import "./styles.css";
 import { AudioEngine } from "./audio.js";
-import { keyMap, orderedKeys } from "./keys.js";
+import { keyMap, keyRows } from "./keys.js";
 import { VisualEngine } from "./visuals.js";
 
 const instrument = document.querySelector(".instrument");
@@ -15,24 +15,36 @@ const audio = new AudioEngine(keyMap);
 const visuals = new VisualEngine(canvas, reducedMotion);
 const buttons = new Map();
 let hasPlayed = false;
+let peakLevel = 0;
+let peakHeldUntil = 0;
+let meterImpulse = 0;
 
-for (const config of orderedKeys) {
-  const button = document.createElement("button");
-  button.className = "key";
-  button.type = "button";
-  button.textContent = config.key;
-  button.dataset.key = config.key;
-  button.style.setProperty("--key-color", config.color);
-  button.setAttribute("aria-label", `Play ${config.key.toUpperCase()}`);
-  button.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    trigger(config.key, {
-      x: event.clientX,
-      y: Math.min(event.clientY, window.innerHeight * 0.62),
+for (const [rowIndex, rowKeys] of keyRows.entries()) {
+  const row = document.createElement("div");
+  row.className = "key-row";
+  row.dataset.row = String(rowIndex);
+
+  for (const key of rowKeys) {
+    const config = keyMap[key];
+    const button = document.createElement("button");
+    button.className = "key";
+    button.type = "button";
+    button.textContent = config.key;
+    button.dataset.key = config.key;
+    button.style.setProperty("--key-color", config.color);
+    button.setAttribute("aria-label", `Play ${config.key.toUpperCase()}`);
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      trigger(config.key, {
+        x: event.clientX,
+        y: Math.min(event.clientY, window.innerHeight * 0.62),
+      });
     });
-  });
-  keyGrid.append(button);
-  buttons.set(config.key, button);
+    row.append(button);
+    buttons.set(config.key, button);
+  }
+
+  keyGrid.append(row);
 }
 
 function trigger(key, origin) {
@@ -45,6 +57,7 @@ function trigger(key, origin) {
 
   const playback = audio.play(normalizedKey);
   visuals.trigger(config, playback, origin);
+  meterImpulse = Math.max(meterImpulse, 0.62 + config.seed * 0.32);
   flashKey(normalizedKey);
 
   if (!hasPlayed) {
@@ -87,8 +100,23 @@ soundToggle.addEventListener("click", () => {
 function frame(time) {
   audio.sample();
   visuals.update(audio, time);
-  meter.style.setProperty("--meter-level", Math.max(audio.energy, 0.025).toFixed(3));
+  updateMeter(time);
   requestAnimationFrame(frame);
+}
+
+function updateMeter(time) {
+  meterImpulse *= 0.965;
+  const level = Math.min(Math.max(audio.energy, meterImpulse, 0), 1);
+
+  if (level >= peakLevel) {
+    peakLevel = level;
+    peakHeldUntil = time + 5000;
+  } else if (time > peakHeldUntil) {
+    peakLevel = Math.max(level, peakLevel - 0.004);
+  }
+
+  meter.style.setProperty("--meter-level", level.toFixed(3));
+  meter.style.setProperty("--peak-offset", `${(peakLevel * 50).toFixed(2)}%`);
 }
 
 requestAnimationFrame(frame);

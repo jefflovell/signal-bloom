@@ -35,32 +35,40 @@ const backgroundFragment = `
 
   void main() {
     vec2 uv = vUv;
-    vec2 centered = uv - 0.5;
+    vec2 screenUv = vec2(uv.x, 1.0 - uv.y);
+    vec2 centered = screenUv - 0.5;
     centered.x *= uResolution.x / max(uResolution.y, 1.0);
 
     vec2 audio = audioAt(uv.x);
     float spectrum = audio.r;
     float waveform = audio.g * 2.0 - 1.0;
+    float idleJitter =
+      sin(uv.x * 37.0 + uTime * 1.7) * 0.0025 +
+      sin(uv.x * 83.0 - uTime * 2.3) * 0.0015;
     float lowWave = sin(uv.x * 8.0 - uTime * 1.8) * uBass * 0.045;
     float midWave = sin(uv.x * 21.0 + uTime * 2.6) * uMid * 0.018;
     float highWave = sin(uv.x * 52.0 - uTime * 4.4) * uTreble * 0.008;
     float analyzer = spectrum * (0.075 + uEnergy * 0.12);
     float scope = waveform * (0.026 + uEnergy * 0.045);
-    float surface = 0.57 - analyzer - scope + lowWave + midWave + highWave;
+    float desktop = smoothstep(720.0, 800.0, uResolution.x);
+    float restingSurface = mix(0.5, 0.72, desktop);
+    float surface =
+      restingSurface - analyzer - scope + idleJitter +
+      lowWave + midWave + highWave;
 
-    float distanceBelow = max(uv.y - surface, 0.0);
+    float distanceBelow = max(screenUv.y - surface, 0.0);
     float perspective = distanceBelow * distanceBelow * 0.32;
-    float y = uv.y + perspective;
+    float gridY = distanceBelow + perspective;
 
-    float horizontal = line(fract((y - surface) * 19.0) - 0.5, 0.035);
+    float horizontal = line(fract(gridY * 19.0) - 0.5, 0.035);
     float verticalWarp = waveform * uEnergy * 0.035;
     float vertical = line(fract((uv.x + verticalWarp) * 24.0) - 0.5, 0.028);
-    float depthMask = smoothstep(surface - 0.012, surface + 0.5, uv.y);
+    float depthMask = smoothstep(-0.005, 0.035, screenUv.y - surface);
     float grid = (horizontal + vertical * 0.55) * depthMask;
 
     float pulse = exp(-length(centered * vec2(0.82, 1.2)) * 4.8);
-    float trace = line(uv.y - surface, 0.004 + uTreble * 0.002);
-    float traceGlow = line(uv.y - surface, 0.018 + uEnergy * 0.01);
+    float trace = line(screenUv.y - surface, 0.004 + uTreble * 0.002);
+    float traceGlow = line(screenUv.y - surface, 0.018 + uEnergy * 0.01);
     vec3 base = vec3(0.027, 0.043, 0.094);
     vec3 blue = vec3(0.192, 0.333, 0.961);
     vec3 cyan = vec3(0.306, 0.906, 0.961);
