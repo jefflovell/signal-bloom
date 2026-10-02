@@ -75,14 +75,14 @@ test('new takes are unquantized and each layer saves its own grid and playback p
 
 test("metronome starts enabled", () => { const {studio} = make(); assert.equal(studio.metronome, true); });
 
-test('10 ms tolerance preserves 32 H hits with alternating 6 ms timing variation', () => {
+test('20 ms tolerance preserves 32 H hits with alternating 6 ms timing variation', () => {
   const beats = Array.from({length:32}, (_, i) => Math.max(0, i * .5 + (i % 2 ? -.012 : .012)));
   assert.deepEqual(beats.map(b => quantize(b, .5, 16, 120)), Array.from({length:32}, (_, i) => i * .5));
 });
 test('tolerance is measured in milliseconds at 160 BPM and does not become nearest rounding', () => {
   const beatsPerSecond = 160 / 60;
-  assert.equal(quantize(.25 - .009 * beatsPerSecond, .25, 16, 160), .25);
-  assert.equal(quantize(.25 - .011 * beatsPerSecond, .25, 16, 160), 0);
+  assert.equal(quantize(.25 - .019 * beatsPerSecond, .25, 16, 160), .25);
+  assert.equal(quantize(.25 - .021 * beatsPerSecond, .25, 16, 160), 0);
   assert.equal(quantize(.14, .25, 16, 160), 0);
   assert.equal(quantize(15.999, .25, 16, 160), 15.75);
   assert.equal(quantize(.24, 0, 16, 160), .24);
@@ -98,4 +98,9 @@ test('playback schedules repeated cycles ahead and only stops on request', () =>
   audio.ctx.currentTime = 3.3; studio.tick(); assert.equal(calls.length, 6);
   studio.stop(); assert.equal(studio.running, false);
   audio.ctx.currentTime = 5; studio.tick(); assert.equal(calls.length, 6);
+});
+
+test('20 ms tolerance recovers early hits beyond the former 10 ms allowance', () => {
+  assert.equal(quantize(.5 - .019 * 2, .5, 16, 120), .5);
+  assert.equal(quantize(.5 - .021 * 2, .5, 16, 120), 0);
 });

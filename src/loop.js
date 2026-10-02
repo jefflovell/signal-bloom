@@ -1,6 +1,6 @@
 export function quantize(beat, grid, length, bpm = 120) {
-  // Allow up to 10 ms early, capped at one quarter of a subdivision.
-  const tolerance = Math.min(0.01 * bpm / 60, grid / 4);
+  // Allow up to 20 ms early, capped at one quarter of a subdivision.
+  const tolerance = Math.min(0.02 * bpm / 60, grid / 4);
   return grid ? Math.max(0, Math.min(Math.floor((beat + tolerance) / grid) * grid, length - grid)) : beat;
 }
 

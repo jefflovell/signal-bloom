@@ -66,7 +66,7 @@ Quantization is saved independently per layer and used by both playback and WAV 
 New layers always start with quantization Off; there is no global quantization selector.
 The metronome is enabled by default. Original hit timing is preserved when changing a layer’s grid.
 
-Quantization snaps backward, except hits up to 10 ms early can snap forward to
+Quantization snaps backward, except hits up to 20 ms early can snap forward to
 the imminent subdivision (tolerance capped at a quarter of the subdivision).
 The allowance is tempo-aware and identical in playback and export. Late hits
 never wrap to beat zero. Off restores original timing.
