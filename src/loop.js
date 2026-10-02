@@ -1,5 +1,5 @@
 export function quantize(beat, grid, length) {
-  return grid ? (Math.round(beat / grid) * grid) % length : beat;
+  return grid ? Math.max(0, Math.min(Math.floor(beat / grid) * grid, length - grid)) : beat;
 }
 
 export function encodeWav(buffer) {

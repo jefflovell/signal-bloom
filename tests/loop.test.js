@@ -8,9 +8,13 @@ const make = () => {
   clearInterval(studio.timer); studio.bars = 1; studio.countIn = false;
   return {audio, studio, calls};
 };
-test('quantization wraps at loop boundary and leaves source timing unchanged', () => {
+test('quantization always snaps backward without wrapping or changing source timing', () => {
   const event = {beat: 3.98};
-  assert.equal(quantize(event.beat, .25, 4), 0);
+  assert.equal(quantize(event.beat, .25, 4), 3.75);
+  assert.equal(quantize(.49, 1, 4), 0);
+  assert.equal(quantize(.51, 1, 4), 0);
+  assert.equal(quantize(1, 1, 4), 1);
+  assert.equal(quantize(3.99, 1, 4), 3);
   assert.equal(quantize(event.beat, 0, 4), 3.98);
   assert.equal(event.beat, 3.98);
 });
@@ -63,7 +67,7 @@ test('new takes are unquantized and each layer saves its own grid and playback p
   assert.deepEqual(studio.layers.map(l => l.grid), [1, .25]);
   calls.length = 0; studio.start();
   assert.equal(calls[0][1], studio.startTime);
-  assert.equal(calls[1][1], studio.startTime + .25);
+  assert.equal(calls[1][1], studio.startTime + .125);
   studio.stop(); studio.layers[0].grid = 0; calls.length = 0; studio.start();
   assert.equal(calls[0][1], studio.startTime + .19);
   assert.equal(studio.layers[1].grid, .25);

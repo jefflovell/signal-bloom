@@ -65,3 +65,7 @@ bounded active bursts; audio playback and capture are not frame-rate limited.
 Quantization is saved independently per layer and used by both playback and WAV export.
 New layers always start with quantization Off; there is no global quantization selector.
 The metronome is enabled by default. Original hit timing is preserved when changing a layer’s grid.
+
+Quantization always snaps backward to the start of the selected subdivision.
+It never rounds forward or wraps a late hit to beat zero. Off restores original timing.
+Multiple played hits landing in the same subdivision are preserved, not deleted.
