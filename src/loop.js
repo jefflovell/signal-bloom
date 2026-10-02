@@ -25,8 +25,8 @@ export function encodeWav(buffer) {
 
 export class LoopStudio {
   constructor(audio, changed, played) {
-    Object.assign(this, { audio, changed, played, bpm: 120, bars: 4, grid: 0.25,
-      layers: [], running: false, metronome: false, countIn: true, take: null, serial: 0 });
+    Object.assign(this, { audio, changed, played, bpm: 120, bars: 4,
+      layers: [], running: false, metronome: true, countIn: true, take: null, serial: 0 });
     this.timer = setInterval(() => this.tick(), 25);
   }
   get length() { return this.bars * 4; }
@@ -36,7 +36,7 @@ export class LoopStudio {
     this.running = true;
     this.startTime = this.audio.ctx.currentTime + 0.12 + (record && this.countIn ? 480 / this.bpm : 0);
     this.endTime = this.startTime + this.length * 60 / this.bpm;
-    this.take = record ? { start: 0, events: [], grid: this.grid } : null;
+    this.take = record ? { start: 0, events: [], grid: 0 } : null;
     this.visualQueue = [];
     // Schedule the whole bounded pass on the audio clock, independent of UI frames.
     for (const layer of this.layers) this.scheduleLayer(layer);

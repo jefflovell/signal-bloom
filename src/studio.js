@@ -8,8 +8,7 @@ export function createStudio(audio, onPlayback) {
       <div class="settings">
         <label>Tempo <input id="tempo" type="number" min="40" max="240" value="120"> BPM</label>
         <label>Loop <select id="bars"><option>1</option><option>2</option><option selected>4</option><option>8</option></select> bars</label>
-        <label>New layer quantize <select id="grid"><option value="0">Off</option><option value="1">1/4 note</option><option value="0.5">1/8 note</option><option value="0.25" selected>1/16 note</option></select></label>
-        <label><input id="click" type="checkbox"> Metronome</label>
+        <label><input id="click" type="checkbox" checked> Metronome</label>
         <label><input id="count" type="checkbox" checked> 8-beat count-in</label>
       </div>
       <div class="take-cue" id="take-cue" role="status" aria-live="polite">READY</div>
@@ -31,7 +30,7 @@ export function createStudio(audio, onPlayback) {
     el('stop').disabled = !studio.running;
     el('undo').disabled = !studio.layers.length || !!studio.take || busy;
     el('download').disabled = !studio.layers.some(l => !l.muted) || !!studio.take || busy;
-    for (const id of ['tempo', 'bars', 'grid']) el(id).disabled = studio.running || busy || (id === 'bars' && studio.layers.length > 0);
+    for (const id of ['tempo', 'bars']) el(id).disabled = studio.running || busy || (id === 'bars' && studio.layers.length > 0);
     el('count').disabled = studio.running;
     el('click').disabled = studio.running;
     el('layers').replaceChildren();
@@ -75,7 +74,6 @@ export function createStudio(audio, onPlayback) {
   el('undo').onclick = () => { const layer = studio.layers.pop(); if (layer) studio.updateLayer(layer); render(); };
   el('tempo').onchange = () => { studio.bpm = Math.min(240, Math.max(40, Number(el('tempo').value) || 120)); el('tempo').value = studio.bpm; };
   el('bars').onchange = () => studio.bars = Number(el('bars').value);
-  el('grid').onchange = () => studio.grid = Number(el('grid').value);
   el('click').disabled = false;
   el('click').onchange = () => { studio.metronome = el('click').checked; if (!studio.metronome) audio.silence('click'); };
   el('count').onchange = () => studio.countIn = el('count').checked;
