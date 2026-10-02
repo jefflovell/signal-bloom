@@ -4,6 +4,18 @@ export function quantize(beat, grid, length, bpm = 120) {
   return grid ? Math.max(0, Math.min(Math.floor((beat + tolerance) / grid) * grid, length - grid)) : beat;
 }
 
+export function playbackEvents(layer, length, bpm) {
+  if (!layer.grid) return layer.events;
+  const occupied = new Set();
+  return layer.events.flatMap(event => {
+    const beat = quantize(event.beat, layer.grid, length, bpm);
+    const slot = `${event.key}:${beat}`;
+    if (occupied.has(slot)) return [];
+    occupied.add(slot);
+    return [{ ...event, beat }];
+  });
+}
+
 export function encodeWav(buffer) {
   const channels = buffer.numberOfChannels;
   const bytes = new ArrayBuffer(44 + buffer.length * channels * 2);
@@ -52,8 +64,8 @@ export class LoopStudio {
   }
   scheduleLayer(layer, cycle = 0) {
     if (!this.running || layer.muted) return;
-    for (const event of layer.events) {
-      const beat = quantize(event.beat, layer.grid, this.length, this.bpm);
+    for (const event of playbackEvents(layer, this.length, this.bpm)) {
+      const beat = event.beat;
       const time = this.startTime + (beat + cycle * this.length) * 60 / this.bpm;
       if (time < this.audio.ctx.currentTime) continue;
       this.audio.play(event.key, time, layer.id, this.recordingPass ? this.endTime : Infinity);
@@ -115,12 +127,12 @@ export class LoopStudio {
     const maxTail = Math.max(...layers.flatMap(l => l.events.map(e => this.audio.buffers.get(e.key).duration)));
     const warmup = Math.ceil(maxTail / duration);
     const context = new OfflineAudioContext(2, frames * (warmup + 1), rate);
-    for (let cycle = 0; cycle <= warmup; cycle++) for (const layer of layers) for (const event of layer.events) {
+    for (let cycle = 0; cycle <= warmup; cycle++) for (const layer of layers) for (const event of playbackEvents(layer, this.length, this.bpm)) {
       const source = context.createBufferSource();
       source.buffer = this.audio.buffers.get(event.key);
       const gain = context.createGain(); gain.gain.value = 0.72;
       source.connect(gain).connect(context.destination);
-      source.start(cycle * frames / rate + quantize(event.beat, layer.grid, this.length, this.bpm) * 60 / this.bpm);
+      source.start(cycle * frames / rate + event.beat * 60 / this.bpm);
     }
     const rendered = await context.startRendering();
     const loop = new AudioBuffer({numberOfChannels: 2, length: frames, sampleRate: rate});

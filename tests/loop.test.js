@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { quantize, encodeWav, LoopStudio } from '../src/loop.js';
+import { quantize, playbackEvents, encodeWav, LoopStudio } from '../src/loop.js';
 const make = () => {
   const calls = [];
   const audio = {ctx: {currentTime: 0}, play: (...args) => calls.push(args), silence() {}, click() {}};
@@ -103,4 +103,16 @@ test('playback schedules repeated cycles ahead and only stops on request', () =>
 test('20 ms tolerance recovers early hits beyond the former 10 ms allowance', () => {
   assert.equal(quantize(.5 - .019 * 2, .5, 16, 120), .5);
   assert.equal(quantize(.5 - .021 * 2, .5, 16, 120), 0);
+});
+
+test('quarter-note collisions trigger one voice per pad while Off restores every hit', () => {
+  const {studio, calls} = make();
+  const events = [{key:'h',beat:.06},{key:'h',beat:.52},{key:'h',beat:1.04},{key:'h',beat:1.54},{key:'q',beat:.08}];
+  const original = structuredClone(events);
+  const layer = {id:1,grid:1,events};
+  assert.deepEqual(playbackEvents(layer,4,120).map(e=>[e.key,e.beat]), [['h',0],['h',1],['q',0]]);
+  studio.layers = [layer]; studio.start(); assert.equal(calls.length,3); studio.stop();
+  layer.grid = .5; assert.equal(playbackEvents(layer,4,120).length,5);
+  layer.grid = 0; assert.deepEqual(playbackEvents(layer,4,120),original);
+  assert.deepEqual(layer.events,original);
 });

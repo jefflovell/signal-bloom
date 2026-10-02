@@ -70,4 +70,6 @@ Quantization snaps backward, except hits up to 20 ms early can snap forward to
 the imminent subdivision (tolerance capped at a quarter of the subdivision).
 The allowance is tempo-aware and identical in playback and export. Late hits
 never wrap to beat zero. Off restores original timing.
-Multiple played hits landing in the same subdivision are preserved, not deleted.
+Within a quantized layer, hits on the same pad that land on the same subdivision
+play once, avoiding stacked double hits. Different pads and separate layers remain
+independent. Original events are preserved; turning quantization Off restores all hits.
