@@ -424,3 +424,7 @@ h1 { font-size: clamp(3rem, 6vw, 6rem); }
 .studio[data-phase="recording"] { border-color: #ff755f; box-shadow: 0 0 0 3px #ff755f; }
 .studio[data-phase="recording"] .take-cue { background: #8a2017; border-color: #ffad9f; }
 .studio[data-phase="playing"] .take-cue { border-color: var(--cyan); }
+
+.layer { flex-wrap: wrap; }
+.layer-quantize { display: flex; align-items: center; gap: 6px; }
+@media (max-width: 480px) { .layer > span { flex-basis: 100%; } .layer-quantize { margin-right: auto; } .layer button, .layer select { padding: 8px; } }

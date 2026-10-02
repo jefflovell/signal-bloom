@@ -54,3 +54,15 @@ test('WAV header, stereo interleaving and peak protection', () => {
   assert.equal(view.getUint16(22,true),2); assert.equal(view.getInt16(44,true),32767);
   assert.equal(view.getInt16(46,true),-32768); assert.equal(view.getInt16(48,true),16384);
 });
+test('each take saves its own grid and playback preserves independent timing', () => {
+  const {audio, studio, calls} = make();
+  studio.grid = 1; studio.record(); studio.capture('q', studio.startTime + .19); studio.stop();
+  studio.grid = .25; studio.record(); studio.capture('w', studio.startTime + .19); studio.stop();
+  assert.deepEqual(studio.layers.map(l => l.grid), [1, .25]);
+  studio.grid = .5; calls.length = 0; studio.start();
+  assert.equal(calls[0][1], studio.startTime);
+  assert.equal(calls[1][1], studio.startTime + .25);
+  studio.stop(); studio.layers[0].grid = 0; calls.length = 0; studio.start();
+  assert.equal(calls[0][1], studio.startTime + .19);
+  assert.equal(studio.layers[1].grid, .25);
+});

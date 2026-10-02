@@ -36,7 +36,7 @@ export class LoopStudio {
     this.running = true;
     this.startTime = this.audio.ctx.currentTime + 0.12 + (record && this.countIn ? 480 / this.bpm : 0);
     this.endTime = this.startTime + this.length * 60 / this.bpm;
-    this.take = record ? { start: 0, events: [] } : null;
+    this.take = record ? { start: 0, events: [], grid: this.grid } : null;
     this.visualQueue = [];
     // Schedule the whole bounded pass on the audio clock, independent of UI frames.
     for (const layer of this.layers) this.scheduleLayer(layer);
@@ -49,7 +49,7 @@ export class LoopStudio {
   scheduleLayer(layer) {
     if (!this.running || layer.muted) return;
     for (const event of layer.events) {
-      const beat = quantize(event.beat, this.grid, this.length);
+      const beat = quantize(event.beat, layer.grid, this.length);
       const time = this.startTime + beat * 60 / this.bpm;
       if (time < this.audio.ctx.currentTime) continue;
       this.audio.play(event.key, time, layer.id, this.endTime);
@@ -72,7 +72,7 @@ export class LoopStudio {
     if (position >= 0 && position < this.length) this.take.events.push({ key, beat: position });
   }
   finish() {
-    if (this.take?.events.length) this.layers.push({ id: ++this.serial, events: this.take.events, muted: false });
+    if (this.take?.events.length) this.layers.push({ id: ++this.serial, events: this.take.events, grid: this.take.grid, muted: false });
     this.take = null;
   }
   stop() {
@@ -101,7 +101,7 @@ export class LoopStudio {
       source.buffer = this.audio.buffers.get(event.key);
       const gain = context.createGain(); gain.gain.value = 0.72;
       source.connect(gain).connect(context.destination);
-      source.start(cycle * frames / rate + quantize(event.beat, this.grid, this.length) * 60 / this.bpm);
+      source.start(cycle * frames / rate + quantize(event.beat, layer.grid, this.length) * 60 / this.bpm);
     }
     const rendered = await context.startRendering();
     const loop = new AudioBuffer({numberOfChannels: 2, length: frames, sampleRate: rate});

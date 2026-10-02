@@ -39,7 +39,7 @@ when stopped and stops the transport when running, including during count-in.
 The shortcut ignores held-key repeats and does not intercept input fields. Mute, delete, or undo layers
 without flattening the original pad events.
 
-Stop playback to change tempo or quantization (Off, 1/4, 1/8, 1/16). Quantization is
+Stop playback to change tempo or each layer’s quantization (Off, 1/4, 1/8, 1/16). Quantization is
 reversible and never changes live pad response. Loop length is locked while
 layers exist; delete all layers to choose a different length. Tempo changes
 adjust event spacing, not sample pitch or duration.
@@ -61,3 +61,7 @@ when capture begins. Playback is scheduled for the full take on the audio clock,
 so delayed visual frames do not discard scheduled hits. Pad capture happens
 before asynchronous audio unlocking. Visual rendering is capped at 30 FPS with
 bounded active bursts; audio playback and capture are not frame-rate limited.
+
+Quantization is saved independently per layer and used by both playback and WAV export.
+New layer quantize sets the default captured when a take begins; changing it does
+not alter existing layers. Original hit timing is preserved when changing a layer’s grid.

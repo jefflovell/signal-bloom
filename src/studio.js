@@ -8,7 +8,7 @@ export function createStudio(audio, onPlayback) {
       <div class="settings">
         <label>Tempo <input id="tempo" type="number" min="40" max="240" value="120"> BPM</label>
         <label>Loop <select id="bars"><option>1</option><option>2</option><option selected>4</option><option>8</option></select> bars</label>
-        <label>Quantize <select id="grid"><option value="0">Off</option><option value="1">1/4 note</option><option value="0.5">1/8 note</option><option value="0.25" selected>1/16 note</option></select></label>
+        <label>New layer quantize <select id="grid"><option value="0">Off</option><option value="1">1/4 note</option><option value="0.5">1/8 note</option><option value="0.25" selected>1/16 note</option></select></label>
         <label><input id="click" type="checkbox"> Metronome</label>
         <label><input id="count" type="checkbox" checked> 8-beat count-in</label>
       </div>
@@ -16,7 +16,7 @@ export function createStudio(audio, onPlayback) {
       <div class="position"><progress id="position" max="1" value="0" aria-label="Loop position"></progress><span id="beat">Stopped</span></div>
       <p id="studio-status" role="status">Loading samples…</p>
       <div id="layers" aria-label="Recorded layers"></div>
-      <p class="studio-help">Desktop: Space starts recording or stops the transport. Every layer gets its own eight-beat count-in and stops at the selected bar length. Existing layers play under your new take. Playback also stops after one pass. Live pads play immediately; quantization affects loop playback. Stop to edit timing. Sessions last until this page closes. WAV exports loop tails and reduces peaks only if needed to prevent clipping.</p>
+      <p class="studio-help">Desktop: Space starts recording or stops the transport. Every layer gets its own eight-beat count-in and stops at the selected bar length. Existing layers play under your new take. Playback also stops after one pass. Live pads play immediately. Each layer has independent quantization for playback and WAV export. Stop to edit timing. Sessions last until this page closes. WAV exports loop tails and reduces peaks only if needed to prevent clipping.</p>
     </div>`;
   document.querySelector('.instrument').append(panel);
   const el = id => panel.querySelector('#' + id);
@@ -38,12 +38,23 @@ export function createStudio(audio, onPlayback) {
     for (const layer of studio.layers) {
       const row = document.createElement('div'); row.className = 'layer';
       const name = document.createElement('span'); name.textContent = `Layer ${layer.id} · ${layer.events.length} hits`;
+      const quantization = document.createElement('label');
+      quantization.className = 'layer-quantize'; quantization.textContent = 'Quantize ';
+      const grid = document.createElement('select');
+      grid.setAttribute('aria-label', `Quantize layer ${layer.id}`);
+      for (const [value, text] of [[0, 'Off'], [1, '1/4 note'], [0.5, '1/8 note'], [0.25, '1/16 note']]) {
+        grid.add(new Option(text, String(value)));
+      }
+      grid.value = String(layer.grid ?? 0);
+      grid.disabled = studio.running || busy;
+      grid.onchange = () => { layer.grid = Number(grid.value); };
+      quantization.append(grid);
       const mute = document.createElement('button'); mute.textContent = layer.muted ? 'Unmute' : 'Mute'; mute.setAttribute('aria-label', `${mute.textContent} layer ${layer.id}`); mute.setAttribute('aria-pressed', String(layer.muted));
       const remove = document.createElement('button'); remove.textContent = 'Delete'; remove.setAttribute('aria-label', `Delete layer ${layer.id}`);
       mute.disabled = remove.disabled = busy;
       mute.onclick = () => { layer.muted = !layer.muted; studio.updateLayer(layer); render(); };
       remove.onclick = () => { studio.layers = studio.layers.filter(l => l !== layer); studio.updateLayer(layer); render(); };
-      row.append(name, mute, remove); el('layers').append(row);
+      row.append(name, quantization, mute, remove); el('layers').append(row);
     }
     if (loaded && !busy) message(studio.take ? 'Wait for RECORDING — PLAY NOW. The take stops automatically.' : studio.running ? 'Playing one pass. Record starts a new take with its own count-in.' : 'Ready. Choose a tempo and record a layer.');
   }
