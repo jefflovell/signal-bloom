@@ -24,7 +24,7 @@ export class AudioEngine {
 
   async unlock() { await this.ctx.resume(); await this.ready; }
 
-  play(key, when = this.ctx.currentTime, group = 'live') {
+  play(key, when = this.ctx.currentTime, group = 'live', until = Infinity) {
     const buffer = this.buffers.get(key);
     if (!buffer) return null;
     const source = this.ctx.createBufferSource();
@@ -36,6 +36,7 @@ export class AudioEngine {
     this.voices.add(voice);
     source.onended = () => { this.voices.delete(voice); source.disconnect(); gain.disconnect(); };
     source.start(when);
+    if (Number.isFinite(until)) source.stop(until);
     return { duration: buffer.duration };
   }
 

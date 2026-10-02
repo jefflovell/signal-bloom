@@ -143,7 +143,7 @@ export class VisualEngine {
       canvas,
       alpha: false,
       antialias: false,
-      dpr: Math.min(window.devicePixelRatio, 2),
+      dpr: Math.min(window.devicePixelRatio, 1.5),
     });
     this.gl = this.renderer.gl;
     this.gl.clearColor(0.027, 0.043, 0.094, 1);
@@ -152,7 +152,7 @@ export class VisualEngine {
 
     this.width = 1;
     this.height = 1;
-    this.pixelRatio = Math.min(window.devicePixelRatio, 2);
+    this.pixelRatio = Math.min(window.devicePixelRatio, 1.5);
     this.cursor = 0;
     this.lastTime = performance.now();
     this.activeBursts = [];
@@ -248,7 +248,7 @@ export class VisualEngine {
   resize() {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
-    this.pixelRatio = Math.min(window.devicePixelRatio, 2);
+    this.pixelRatio = Math.min(window.devicePixelRatio, 1.5);
     this.renderer.setSize(this.width, this.height);
     this.backgroundProgram.uniforms.uResolution.value = [this.width, this.height];
     this.particleProgram.uniforms.uResolution.value = [this.width, this.height];
@@ -261,6 +261,7 @@ export class VisualEngine {
     const point = origin || this.#originForSeed(config.seed);
     const particleCount = this.reducedMotion ? 28 : 74;
 
+    if (this.activeBursts.length >= 24) this.activeBursts.shift();
     this.activeBursts.push({
       age: 0,
       attack: Math.min(0.06 + duration * 0.04, 0.16),

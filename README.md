@@ -31,12 +31,15 @@ npm run build
 ## Release 1: Loop studio
 
 Choose 40–240 BPM and a 1-, 2-, 4-, or 8-bar loop in 4/4 time. Record layer
-starts a one-bar count-in (optional), captures one loop, and switches to playback.
-Record again to arm an overdub at the next loop boundary. Finish layer or Stop
-keeps a partial take; empty takes are discarded. Mute, delete, or undo layers
+starts an eight-beat / two-bar count-in (optional), captures one take, and stops automatically at the selected bar length.
+Record again for a fresh eight-beat count-in; existing layers accompany the new take.
+Play take auditions one pass and stops automatically. Continuous overwrite is not enabled. Finish layer or Stop
+keeps a partial take; empty takes are discarded. On desktop, Space starts recording
+when stopped and stops the transport when running, including during count-in.
+The shortcut ignores held-key repeats and does not intercept input fields. Mute, delete, or undo layers
 without flattening the original pad events.
 
-Stop playback to change tempo or quantization (Off, 1/8, 1/16). Quantization is
+Stop playback to change tempo or quantization (Off, 1/4, 1/8, 1/16). Quantization is
 reversible and never changes live pad response. Loop length is locked while
 layers exist; delete all layers to choose a different length. Tempo changes
 adjust event spacing, not sample pitch or duration.
@@ -52,3 +55,9 @@ Sample load failures appear in the studio status. Imported audio, persistent
 projects, EQ, and custom kits belong to later releases.
 
 Run timing, recording-transition, and WAV-format checks with `npm test`.
+
+The amber GET READY countdown changes to a red RECORDING — PLAY NOW banner
+when capture begins. Playback is scheduled for the full take on the audio clock,
+so delayed visual frames do not discard scheduled hits. Pad capture happens
+before asynchronous audio unlocking. Visual rendering is capped at 30 FPS with
+bounded active bursts; audio playback and capture are not frame-rate limited.

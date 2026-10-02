@@ -14,19 +14,33 @@ test('quantization wraps at loop boundary and leaves source timing unchanged', (
   assert.equal(quantize(event.beat, 0, 4), 3.98);
   assert.equal(event.beat, 3.98);
 });
-test('recording completes once and schedules the new layer at its first boundary', () => {
+test('recording automatically stops at bar length without replaying the take', () => {
   const {audio, studio, calls} = make(); studio.start(true);
   audio.ctx.currentTime = .12; studio.capture('q');
-  audio.ctx.currentTime = 2.06; studio.tick();
-  assert.equal(calls.length, 1); assert.equal(calls[0][1], 2.12);
   audio.ctx.currentTime = 2.13; studio.tick(); studio.tick();
   assert.equal(studio.layers.length, 1); assert.equal(studio.take, null);
-  assert.equal(calls.length, 1);
+  assert.equal(studio.running, false); assert.equal(calls.length, 0);
+});
+test('four bars capture all 16 quarter-note kicks and 23 snare hits', () => {
+  const {audio, studio, calls} = make(); studio.bars = 4; studio.grid = 1; studio.countIn = true;
+  studio.record();
+  for (let i = 0; i < 16; i++) studio.capture('q', studio.startTime + (i + .01) * .5);
+  audio.ctx.currentTime = studio.endTime; studio.tick();
+  assert.equal(studio.layers[0].events.length, 16);
+  studio.record();
+  assert(Math.abs(studio.startTime - audio.ctx.currentTime - 4.12) < 1e-9);
+  assert.equal(calls.length, 16); // Entire backing pass is scheduled before UI work.
+  for (let i = 0; i < 23; i++) studio.capture('w', studio.startTime + (i + .01) * 8 / 23);
+  audio.ctx.currentTime = studio.endTime + .5; studio.tick();
+  assert.equal(studio.layers[1].events.length, 23);
+  assert.equal(studio.running, false); assert.equal(calls.length, 16);
 });
 test('count-in excludes early hits and stop preserves a partial layer', () => {
   const {audio, studio} = make(); studio.countIn = true; studio.start(true);
-  studio.capture('q'); assert.equal(studio.take.events.length, 0);
-  audio.ctx.currentTime = 2.3; studio.capture('w'); studio.stop();
+  assert.equal(studio.startTime, 4.12);
+  audio.ctx.currentTime = 2.3; studio.capture('q');
+  assert.equal(studio.take.events.length, 0);
+  audio.ctx.currentTime = 4.3; studio.capture('w'); studio.stop();
   assert.equal(studio.layers[0].events.length, 1); assert.equal(studio.running, false);
 });
 test('muted layers are not scheduled', () => {

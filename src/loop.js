@@ -32,55 +32,60 @@ export class LoopStudio {
   get length() { return this.bars * 4; }
   get beat() { return (this.audio.ctx.currentTime - this.startTime) * this.bpm / 60; }
   start(record = false) {
+    if (this.running) this.stop();
     this.running = true;
-    this.startTime = this.audio.ctx.currentTime + 0.12 + (record && this.countIn ? 240 / this.bpm : 0);
-    this.cursor = (this.audio.ctx.currentTime - this.startTime) * this.bpm / 60;
-    if (record) this.take = { start: 0, events: [] };
-    this.changed(); this.tick();
-  }
-  record() {
-    if (this.take) { this.finish(); return; }
-    if (!this.running) { this.start(true); return; }
-    this.take = { start: Math.ceil((this.beat + 0.2) / this.length) * this.length, events: [] };
+    this.startTime = this.audio.ctx.currentTime + 0.12 + (record && this.countIn ? 480 / this.bpm : 0);
+    this.endTime = this.startTime + this.length * 60 / this.bpm;
+    this.take = record ? { start: 0, events: [] } : null;
+    this.visualQueue = [];
+    // Schedule the whole bounded pass on the audio clock, independent of UI frames.
+    for (const layer of this.layers) this.scheduleLayer(layer);
+    const first = record && this.countIn ? -8 : 0;
+    for (let beat = first; beat < this.length; beat++) {
+      if (beat < 0 || this.metronome) this.audio.click(this.startTime + beat * 60 / this.bpm, beat % 4 === 0);
+    }
     this.changed();
   }
-  capture(key) {
+  scheduleLayer(layer) {
+    if (!this.running || layer.muted) return;
+    for (const event of layer.events) {
+      const beat = quantize(event.beat, this.grid, this.length);
+      const time = this.startTime + beat * 60 / this.bpm;
+      if (time < this.audio.ctx.currentTime) continue;
+      this.audio.play(event.key, time, layer.id, this.endTime);
+      this.visualQueue.push({ key: event.key, time, layer: layer.id });
+    }
+    this.visualQueue.sort((a, b) => a.time - b.time);
+  }
+  updateLayer(layer) {
+    this.audio.silence(layer.id);
+    this.visualQueue = (this.visualQueue || []).filter(event => event.layer !== layer.id);
+    if (this.layers.includes(layer)) this.scheduleLayer(layer);
+  }
+  record() {
+    if (this.take) { this.stop(); return; }
+    this.start(true);
+  }
+  capture(key, time = this.audio.ctx.currentTime) {
     if (!this.take) return;
-    const position = this.beat - this.take.start;
+    const position = (time - this.startTime) * this.bpm / 60;
     if (position >= 0 && position < this.length) this.take.events.push({ key, beat: position });
   }
   finish() {
     if (this.take?.events.length) this.layers.push({ id: ++this.serial, events: this.take.events, muted: false });
-    this.take = null; this.changed();
+    this.take = null;
   }
   stop() {
-    if (this.take) this.finish();
-    this.running = false; this.audio.silence(); this.changed();
+    this.finish();
+    this.running = false; this.visualQueue = []; this.audio.silence(); this.changed();
   }
   tick() {
     if (!this.running) return;
-    const now = this.beat;
-    if (this.take && now >= this.take.start + this.length) this.finish();
-    const end = now + 0.1 * this.bpm / 60;
-    const from = Math.max(this.cursor, now);
-    const when = beat => this.startTime + beat * 60 / this.bpm;
-    for (let beat = Math.ceil(from); beat < end; beat++) {
-      if (this.metronome || (this.take && beat < this.take.start)) this.audio.click(when(beat), beat % 4 === 0);
-    }
-    const pending = this.take?.events.length ? [{ id: this.serial + 1, events: this.take.events, firstBeat: this.take.start + this.length }] : [];
-    for (const layer of [...this.layers, ...pending]) {
-      if (layer.muted) continue;
-      for (const event of layer.events) {
-        const offset = quantize(event.beat, this.grid, this.length);
-        const cycle = Math.max(0, Math.ceil((Math.max(from, layer.firstBeat ?? 0) - offset) / this.length));
-        const beat = cycle * this.length + offset;
-        if (beat >= from && beat < end) {
-          this.audio.play(event.key, when(beat), layer.id);
-          this.played(event.key, Math.max(0, (when(beat) - this.audio.ctx.currentTime) * 1000));
-        }
-      }
-    }
-    this.cursor = end;
+    if (this.audio.ctx.currentTime >= this.endTime) { this.stop(); return; }
+    // Coalesce visual events after a slow frame; audio has already been scheduled.
+    let latest;
+    while (this.visualQueue.length && this.visualQueue[0].time <= this.audio.ctx.currentTime) latest = this.visualQueue.shift();
+    if (latest) this.played(latest.key, 0);
   }
   async export() {
     const layers = this.layers.filter(layer => !layer.muted);

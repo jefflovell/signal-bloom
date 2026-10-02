@@ -15,17 +15,16 @@ const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matc
 const audio = new AudioEngine(keyMap);
 const visuals = new VisualEngine(canvas, reducedMotion);
 const buttons = new Map();
-const studio = createStudio(audio, (key, delay) => {
-  setTimeout(() => {
-    if (!studio.running || audio.muted) return;
-    visuals.trigger(keyMap[key], { duration: audio.buffers.get(key).duration });
-    flashKey(key);
-  }, delay);
+const studio = createStudio(audio, key => {
+  if (audio.muted) return;
+  visuals.trigger(keyMap[key], { duration: audio.buffers.get(key).duration });
+  flashKey(key);
 });
 let hasPlayed = false;
 let peakLevel = 0;
 let peakHeldUntil = 0;
 let meterImpulse = 0;
+let lastVisualFrame = 0;
 
 for (const [rowIndex, rowKeys] of keyRows.entries()) {
   const row = document.createElement("div");
@@ -64,9 +63,12 @@ async function trigger(key, origin) {
     return;
   }
 
-  try { await audio.unlock(); } catch { statusCopy.textContent = 'Audio could not load. Reload to retry.'; return; }
-  studio.capture(normalizedKey);
-  const playback = audio.play(normalizedKey);
+  const hitTime = audio.ctx.currentTime;
+  studio.capture(normalizedKey, hitTime);
+  if (audio.ctx.state !== 'running' || !audio.buffers.has(normalizedKey)) {
+    try { await audio.unlock(); } catch { statusCopy.textContent = 'Audio could not load. Reload to retry.'; return; }
+  }
+  const playback = audio.play(normalizedKey, audio.ctx.currentTime, 'live', studio.running ? studio.endTime : Infinity);
   visuals.trigger(config, playback, origin);
   meterImpulse = Math.max(meterImpulse, 0.62 + config.seed * 0.32);
   flashKey(normalizedKey);
@@ -110,7 +112,7 @@ soundToggle.addEventListener("click", () => {
 
 function frame(time) {
   audio.sample();
-  visuals.update(audio, time);
+  if (time - lastVisualFrame >= 1000 / 30) { visuals.update(audio, time); lastVisualFrame = time; }
   updateMeter(time);
   requestAnimationFrame(frame);
 }

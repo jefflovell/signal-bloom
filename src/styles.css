@@ -419,3 +419,8 @@ h1 { font-size: clamp(3rem, 6vw, 6rem); }
 .layer { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: .8rem; }
 .layer span { flex: 1; }
 @media (max-width: 480px) { .instrument { padding-top: 110px; } .intro { margin-top: 30px; } .studio summary span { display: none; } .studio-body { padding: 0 12px 12px; } .transport { gap: 8px; } .transport button { flex: 1 1 40%; font-size: .8rem; } }
+.take-cue { position: sticky; top: 12px; z-index: 5; padding: 18px; margin-bottom: 16px; background: #18233d; border: 2px solid #73829f; color: #fff; font-size: clamp(1rem, 3vw, 1.6rem); font-weight: 700; letter-spacing: .04em; text-align: center; }
+.studio[data-phase="counting"] .take-cue { background: #513b0c; border-color: #ffce66; color: #fff0c9; }
+.studio[data-phase="recording"] { border-color: #ff755f; box-shadow: 0 0 0 3px #ff755f; }
+.studio[data-phase="recording"] .take-cue { background: #8a2017; border-color: #ffad9f; }
+.studio[data-phase="playing"] .take-cue { border-color: var(--cyan); }
