@@ -15,7 +15,7 @@ export function createStudio(audio, onPlayback) {
       <div class="position"><progress id="position" max="1" value="0" aria-label="Loop position"></progress><span id="beat">Stopped</span></div>
       <p id="studio-status" role="status">Loading samples…</p>
       <div id="layers" aria-label="Recorded layers"></div>
-      <p class="studio-help">Desktop: Space starts recording or stops the transport. Every layer gets its own eight-beat count-in and stops at the selected bar length. Existing layers play under your new take. Playback also stops after one pass. Live pads play immediately. Each layer quantizes backward to the subdivision start for playback and WAV export; hits never wrap to the beginning. Stop to edit timing. Sessions last until this page closes. WAV exports loop tails and reduces peaks only if needed to prevent clipping.</p>
+      <p class="studio-help">Desktop: Space starts recording or stops the transport. Every layer gets its own eight-beat count-in and stops at the selected bar length. Existing layers play under your new take. Playback also stops after one pass. Live pads play immediately. Each layer snaps backward, with a 10 ms allowance for slightly early hits. Playback and WAV export use the same timing; hits never wrap to the beginning. Stop to edit timing. Sessions last until this page closes. WAV exports loop tails and reduces peaks only if needed to prevent clipping.</p>
     </div>`;
   document.querySelector('.instrument').append(panel);
   const el = id => panel.querySelector('#' + id);

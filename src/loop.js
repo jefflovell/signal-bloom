@@ -1,5 +1,7 @@
-export function quantize(beat, grid, length) {
-  return grid ? Math.max(0, Math.min(Math.floor(beat / grid) * grid, length - grid)) : beat;
+export function quantize(beat, grid, length, bpm = 120) {
+  // Allow up to 10 ms early, capped at one quarter of a subdivision.
+  const tolerance = Math.min(0.01 * bpm / 60, grid / 4);
+  return grid ? Math.max(0, Math.min(Math.floor((beat + tolerance) / grid) * grid, length - grid)) : beat;
 }
 
 export function encodeWav(buffer) {
@@ -49,7 +51,7 @@ export class LoopStudio {
   scheduleLayer(layer) {
     if (!this.running || layer.muted) return;
     for (const event of layer.events) {
-      const beat = quantize(event.beat, layer.grid, this.length);
+      const beat = quantize(event.beat, layer.grid, this.length, this.bpm);
       const time = this.startTime + beat * 60 / this.bpm;
       if (time < this.audio.ctx.currentTime) continue;
       this.audio.play(event.key, time, layer.id, this.endTime);
@@ -101,7 +103,7 @@ export class LoopStudio {
       source.buffer = this.audio.buffers.get(event.key);
       const gain = context.createGain(); gain.gain.value = 0.72;
       source.connect(gain).connect(context.destination);
-      source.start(cycle * frames / rate + quantize(event.beat, layer.grid, this.length) * 60 / this.bpm);
+      source.start(cycle * frames / rate + quantize(event.beat, layer.grid, this.length, this.bpm) * 60 / this.bpm);
     }
     const rendered = await context.startRendering();
     const loop = new AudioBuffer({numberOfChannels: 2, length: frames, sampleRate: rate});

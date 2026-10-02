@@ -8,7 +8,7 @@ const make = () => {
   clearInterval(studio.timer); studio.bars = 1; studio.countIn = false;
   return {audio, studio, calls};
 };
-test('quantization always snaps backward without wrapping or changing source timing', () => {
+test('quantization uses a small early tolerance without wrapping or changing source timing', () => {
   const event = {beat: 3.98};
   assert.equal(quantize(event.beat, .25, 4), 3.75);
   assert.equal(quantize(.49, 1, 4), 0);
@@ -74,3 +74,16 @@ test('new takes are unquantized and each layer saves its own grid and playback p
 });
 
 test("metronome starts enabled", () => { const {studio} = make(); assert.equal(studio.metronome, true); });
+
+test('10 ms tolerance preserves 32 H hits with alternating 6 ms timing variation', () => {
+  const beats = Array.from({length:32}, (_, i) => Math.max(0, i * .5 + (i % 2 ? -.012 : .012)));
+  assert.deepEqual(beats.map(b => quantize(b, .5, 16, 120)), Array.from({length:32}, (_, i) => i * .5));
+});
+test('tolerance is measured in milliseconds at 160 BPM and does not become nearest rounding', () => {
+  const beatsPerSecond = 160 / 60;
+  assert.equal(quantize(.25 - .009 * beatsPerSecond, .25, 16, 160), .25);
+  assert.equal(quantize(.25 - .011 * beatsPerSecond, .25, 16, 160), 0);
+  assert.equal(quantize(.14, .25, 16, 160), 0);
+  assert.equal(quantize(15.999, .25, 16, 160), 15.75);
+  assert.equal(quantize(.24, 0, 16, 160), .24);
+});
