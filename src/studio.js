@@ -4,7 +4,7 @@ export function createStudio(audio, onPlayback) {
   panel.className = 'studio'; panel.open = true;
   panel.innerHTML = `<summary>Loop studio <span>RECORD / LAYER / EXPORT</span></summary>
     <div class="studio-body">
-      <div class="transport"><button id="play" disabled>Play take</button><button id="record" disabled>Record layer</button><button id="stop" disabled>Stop</button><button id="undo" disabled>Undo layer</button><button id="download" disabled>Download WAV</button></div>
+      <div class="transport"><button id="play" disabled>Play loop</button><button id="record" disabled>Record layer</button><button id="stop" disabled>Stop</button><button id="undo" disabled>Undo layer</button><button id="download" disabled>Download WAV</button></div>
       <div class="settings">
         <label>Tempo <input id="tempo" type="number" min="40" max="240" value="120"> BPM</label>
         <label>Loop <select id="bars"><option>1</option><option>2</option><option selected>4</option><option>8</option></select> bars</label>
@@ -15,7 +15,7 @@ export function createStudio(audio, onPlayback) {
       <div class="position"><progress id="position" max="1" value="0" aria-label="Loop position"></progress><span id="beat">Stopped</span></div>
       <p id="studio-status" role="status">Loading samples…</p>
       <div id="layers" aria-label="Recorded layers"></div>
-      <p class="studio-help">Desktop: Space starts recording or stops the transport. Every layer gets its own eight-beat count-in and stops at the selected bar length. Existing layers play under your new take. Playback also stops after one pass. Live pads play immediately. Each layer snaps backward, with a 10 ms allowance for slightly early hits. Playback and WAV export use the same timing; hits never wrap to the beginning. Stop to edit timing. Sessions last until this page closes. WAV exports loop tails and reduces peaks only if needed to prevent clipping.</p>
+      <p class="studio-help">Desktop: Space starts recording or stops the transport. Every layer gets its own eight-beat count-in and stops at the selected bar length. Existing layers play under your new take. Playback repeats until you press Stop or Space. Live pads play immediately. Each layer snaps backward, with a 10 ms allowance for slightly early hits. Playback and WAV export use the same timing; hits never wrap to the beginning. Stop to edit timing. Sessions last until this page closes. WAV exports loop tails and reduces peaks only if needed to prevent clipping.</p>
     </div>`;
   document.querySelector('.instrument').append(panel);
   const el = id => panel.querySelector('#' + id);
@@ -55,7 +55,7 @@ export function createStudio(audio, onPlayback) {
       remove.onclick = () => { studio.layers = studio.layers.filter(l => l !== layer); studio.updateLayer(layer); render(); };
       row.append(name, quantization, mute, remove); el('layers').append(row);
     }
-    if (loaded && !busy) message(studio.take ? 'Wait for RECORDING — PLAY NOW. The take stops automatically.' : studio.running ? 'Playing one pass. Record starts a new take with its own count-in.' : 'Ready. Choose a tempo and record a layer.');
+    if (loaded && !busy) message(studio.take ? 'Wait for RECORDING — PLAY NOW. The take stops automatically.' : studio.running ? 'Looping playback. Record starts a new take with its own count-in.' : 'Ready. Choose a tempo and record a layer.');
   }
   async function action(fn) {
     try { await audio.unlock(); fn(); } catch (error) { message(`Audio unavailable: ${error.message}`); }

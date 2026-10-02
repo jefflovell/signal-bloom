@@ -87,3 +87,15 @@ test('tolerance is measured in milliseconds at 160 BPM and does not become neare
   assert.equal(quantize(15.999, .25, 16, 160), 15.75);
   assert.equal(quantize(.24, 0, 16, 160), .24);
 });
+test('playback schedules repeated cycles ahead and only stops on request', () => {
+  const {audio, studio, calls} = make();
+  studio.layers = [{id:1, grid:.5, events:[{key:'h',beat:0},{key:'h',beat:1}]}];
+  studio.start(); assert.equal(calls.length, 2);
+  audio.ctx.currentTime = 1.2; studio.tick();
+  assert.equal(calls.length, 4); assert.equal(calls[2][1], 2.12);
+  assert.equal(calls[2][3], Infinity);
+  audio.ctx.currentTime = 2.2; studio.tick(); assert.equal(studio.running, true);
+  audio.ctx.currentTime = 3.3; studio.tick(); assert.equal(calls.length, 6);
+  studio.stop(); assert.equal(studio.running, false);
+  audio.ctx.currentTime = 5; studio.tick(); assert.equal(calls.length, 6);
+});

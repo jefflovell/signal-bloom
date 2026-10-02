@@ -36,6 +36,8 @@ export class LoopStudio {
   start(record = false) {
     if (this.running) this.stop();
     this.running = true;
+    this.recordingPass = record;
+    this.nextCycle = 1;
     this.startTime = this.audio.ctx.currentTime + 0.12 + (record && this.countIn ? 480 / this.bpm : 0);
     this.endTime = this.startTime + this.length * 60 / this.bpm;
     this.take = record ? { start: 0, events: [], grid: 0 } : null;
@@ -48,13 +50,13 @@ export class LoopStudio {
     }
     this.changed();
   }
-  scheduleLayer(layer) {
+  scheduleLayer(layer, cycle = 0) {
     if (!this.running || layer.muted) return;
     for (const event of layer.events) {
       const beat = quantize(event.beat, layer.grid, this.length, this.bpm);
-      const time = this.startTime + beat * 60 / this.bpm;
+      const time = this.startTime + (beat + cycle * this.length) * 60 / this.bpm;
       if (time < this.audio.ctx.currentTime) continue;
-      this.audio.play(event.key, time, layer.id, this.endTime);
+      this.audio.play(event.key, time, layer.id, this.recordingPass ? this.endTime : Infinity);
       this.visualQueue.push({ key: event.key, time, layer: layer.id });
     }
     this.visualQueue.sort((a, b) => a.time - b.time);
@@ -62,7 +64,10 @@ export class LoopStudio {
   updateLayer(layer) {
     this.audio.silence(layer.id);
     this.visualQueue = (this.visualQueue || []).filter(event => event.layer !== layer.id);
-    if (this.layers.includes(layer)) this.scheduleLayer(layer);
+    if (this.layers.includes(layer)) {
+      const currentCycle = this.recordingPass ? 0 : Math.max(0, Math.floor(this.beat / this.length));
+      for (let cycle = currentCycle; cycle < this.nextCycle; cycle++) this.scheduleLayer(layer, cycle);
+    }
   }
   record() {
     if (this.take) { this.stop(); return; }
@@ -83,7 +88,19 @@ export class LoopStudio {
   }
   tick() {
     if (!this.running) return;
-    if (this.audio.ctx.currentTime >= this.endTime) { this.stop(); return; }
+    if (this.recordingPass && this.audio.ctx.currentTime >= this.endTime) { this.stop(); return; }
+    if (!this.recordingPass) {
+      const duration = this.length * 60 / this.bpm;
+      const horizon = this.audio.ctx.currentTime + 1;
+      while (this.startTime + this.nextCycle * duration <= horizon) {
+        const cycle = this.nextCycle++;
+        for (const layer of this.layers) this.scheduleLayer(layer, cycle);
+        if (this.metronome) for (let beat = 0; beat < this.length; beat++) {
+          const time = this.startTime + (cycle * this.length + beat) * 60 / this.bpm;
+          if (time >= this.audio.ctx.currentTime) this.audio.click(time, beat % 4 === 0);
+        }
+      }
+    }
     // Coalesce visual events after a slow frame; audio has already been scheduled.
     let latest;
     while (this.visualQueue.length && this.visualQueue[0].time <= this.audio.ctx.currentTime) latest = this.visualQueue.shift();

@@ -33,7 +33,7 @@ npm run build
 Choose 40–240 BPM and a 1-, 2-, 4-, or 8-bar loop in 4/4 time. Record layer
 starts an eight-beat / two-bar count-in (optional), captures one take, and stops automatically at the selected bar length.
 Record again for a fresh eight-beat count-in; existing layers accompany the new take.
-Play take auditions one pass and stops automatically. Continuous overwrite is not enabled. Finish layer or Stop
+Play loop repeats the layers until Stop or Space; only recording stops automatically. Continuous overwrite is not enabled. Finish layer or Stop
 keeps a partial take; empty takes are discarded. On desktop, Space starts recording
 when stopped and stops the transport when running, including during count-in.
 The shortcut ignores held-key repeats and does not intercept input fields. Mute, delete, or undo layers

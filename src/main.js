@@ -68,7 +68,7 @@ async function trigger(key, origin) {
   if (audio.ctx.state !== 'running' || !audio.buffers.has(normalizedKey)) {
     try { await audio.unlock(); } catch { statusCopy.textContent = 'Audio could not load. Reload to retry.'; return; }
   }
-  const playback = audio.play(normalizedKey, audio.ctx.currentTime, 'live', studio.running ? studio.endTime : Infinity);
+  const playback = audio.play(normalizedKey, audio.ctx.currentTime, 'live', studio.running && studio.recordingPass ? studio.endTime : Infinity);
   visuals.trigger(config, playback, origin);
   meterImpulse = Math.max(meterImpulse, 0.62 + config.seed * 0.32);
   flashKey(normalizedKey);
