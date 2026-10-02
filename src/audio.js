@@ -1,58 +1,61 @@
-import { Howl, Howler } from "howler";
-
 export class AudioEngine {
   constructor(keyMap) {
-    this.sounds = new Map();
-    this.analyser = null;
-    this.timeData = null;
-    this.frequencyData = null;
-    this.energy = 0;
-    this.bass = 0;
-    this.mid = 0;
-    this.treble = 0;
-    this.visualData = new Uint8Array(32 * 4);
-    this.muted = false;
-
-    for (const config of Object.values(keyMap)) {
-      const source = new URL(`../sounds/${config.sound}.mp3`, import.meta.url).href;
-      this.sounds.set(
-        config.key,
-        new Howl({
-          src: [source],
-          preload: true,
-          pool: 8,
-          volume: 0.72,
-        }),
-      );
-    }
-  }
-
-  ensureAnalyser() {
-    if (this.analyser || !Howler.usingWebAudio || !Howler.ctx) {
-      return;
-    }
-
-    this.analyser = Howler.ctx.createAnalyser();
+    this.ctx = new AudioContext();
+    this.master = this.ctx.createGain();
+    this.master.connect(this.ctx.destination);
+    this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 256;
     this.analyser.smoothingTimeConstant = 0.72;
+    this.master.connect(this.analyser);
     this.timeData = new Uint8Array(this.analyser.fftSize);
     this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
-    Howler.masterGain.connect(this.analyser);
+    this.energy = this.bass = this.mid = this.treble = 0;
+    this.visualData = new Uint8Array(128);
+    this.muted = false;
+    this.buffers = new Map();
+    this.voices = new Set();
+    this.ready = Promise.all(Object.values(keyMap).map(async config => {
+      const url = new URL(`../sounds/${config.sound}.mp3`, import.meta.url).href;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Could not load ${config.key.toUpperCase()}`);
+      this.buffers.set(config.key, await this.ctx.decodeAudioData(await response.arrayBuffer()));
+    }));
   }
 
-  play(key) {
-    this.ensureAnalyser();
-    const sound = this.sounds.get(key);
+  async unlock() { await this.ctx.resume(); await this.ready; }
 
-    if (!sound) {
-      return null;
+  play(key, when = this.ctx.currentTime, group = 'live') {
+    const buffer = this.buffers.get(key);
+    if (!buffer) return null;
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+    source.buffer = buffer;
+    gain.gain.value = 0.72;
+    source.connect(gain).connect(this.master);
+    const voice = { source, group };
+    this.voices.add(voice);
+    source.onended = () => { this.voices.delete(voice); source.disconnect(); gain.disconnect(); };
+    source.start(when);
+    return { duration: buffer.duration };
+  }
+
+  click(when, accent) {
+    const source = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    source.frequency.value = accent ? 1200 : 800;
+    gain.gain.setValueAtTime(0.12, when);
+    gain.gain.exponentialRampToValueAtTime(0.001, when + 0.04);
+    source.connect(gain).connect(this.master);
+    const voice = { source, group: 'click' };
+    this.voices.add(voice);
+    source.onended = () => { this.voices.delete(voice); source.disconnect(); gain.disconnect(); };
+    source.start(when); source.stop(when + 0.05);
+  }
+
+  silence(group) {
+    for (const voice of this.voices) if (!group || voice.group === group) {
+      try { voice.source.stop(); } catch { /* Already ended. */ }
     }
-
-    const id = sound.play();
-    return {
-      id,
-      duration: Math.max(sound.duration(id) || sound.duration() || 0.9, 0.25),
-    };
   }
 
   sample() {
@@ -102,7 +105,7 @@ export class AudioEngine {
 
   toggleMute() {
     this.muted = !this.muted;
-    Howler.mute(this.muted);
+    this.master.gain.value = this.muted ? 0 : 1;
     return this.muted;
   }
 

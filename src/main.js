@@ -1,4 +1,5 @@
 import "./styles.css";
+import { createStudio } from "./studio.js";
 import { AudioEngine } from "./audio.js";
 import { keyMap, keyRows } from "./keys.js";
 import { VisualEngine } from "./visuals.js";
@@ -14,6 +15,13 @@ const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matc
 const audio = new AudioEngine(keyMap);
 const visuals = new VisualEngine(canvas, reducedMotion);
 const buttons = new Map();
+const studio = createStudio(audio, (key, delay) => {
+  setTimeout(() => {
+    if (!studio.running || audio.muted) return;
+    visuals.trigger(keyMap[key], { duration: audio.buffers.get(key).duration });
+    flashKey(key);
+  }, delay);
+});
 let hasPlayed = false;
 let peakLevel = 0;
 let peakHeldUntil = 0;
@@ -40,6 +48,7 @@ for (const [rowIndex, rowKeys] of keyRows.entries()) {
         y: Math.min(event.clientY, window.innerHeight * 0.62),
       });
     });
+    button.addEventListener("click", event => { if (event.detail === 0) trigger(config.key); });
     row.append(button);
     buttons.set(config.key, button);
   }
@@ -47,7 +56,7 @@ for (const [rowIndex, rowKeys] of keyRows.entries()) {
   keyGrid.append(row);
 }
 
-function trigger(key, origin) {
+async function trigger(key, origin) {
   const normalizedKey = key.toLowerCase();
   const config = keyMap[normalizedKey];
 
@@ -55,6 +64,8 @@ function trigger(key, origin) {
     return;
   }
 
+  try { await audio.unlock(); } catch { statusCopy.textContent = 'Audio could not load. Reload to retry.'; return; }
+  studio.capture(normalizedKey);
   const playback = audio.play(normalizedKey);
   visuals.trigger(config, playback, origin);
   meterImpulse = Math.max(meterImpulse, 0.62 + config.seed * 0.32);
@@ -80,7 +91,7 @@ function flashKey(key) {
 }
 
 window.addEventListener("keydown", (event) => {
-  if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) {
+  if (event.target.closest("input, select, textarea, [contenteditable]" ) || event.repeat || event.metaKey || event.ctrlKey || event.altKey) {
     return;
   }
 
